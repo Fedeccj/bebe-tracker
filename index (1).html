@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="theme-color" content="#ffffff">
+  <title>Bebe Tracker</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+  <style>
+    :root {
+      --bg-primary: #ffffff;
+      --bg-secondary: #f5f5f3;
+      --bg-tertiary: #eeede9;
+      --text-primary: #1a1a18;
+      --text-secondary: #6b6b67;
+      --text-tertiary: #9b9b96;
+      --border: rgba(0,0,0,0.12);
+      --border-md: rgba(0,0,0,0.22);
+      --radius-md: 8px;
+      --radius-lg: 12px;
+      --radius-xl: 16px;
+      --green: #1D9E75;
+      --green-bg: #E1F5EE;
+      --green-text: #0F6E56;
+      --blue: #378ADD;
+      --blue-bg: #E6F1FB;
+      --blue-text: #185FA5;
+      --amber: #BA7517;
+      --amber-bg: #FAEEDA;
+      --amber-text: #854F0B;
+      --pink: #D4537E;
+      --pink-bg: #FBEAF0;
+      --pink-text: #993556;
+      --red: #E24B4A;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg-primary: #1c1c1a;
+        --bg-secondary: #252523;
+        --bg-tertiary: #2e2e2b;
+        --text-primary: #f0efe9;
+        --text-secondary: #a0a09b;
+        --text-tertiary: #6b6b66;
+        --border: rgba(255,255,255,0.1);
+        --border-md: rgba(255,255,255,0.2);
+        --green-bg: #0d3326;
+        --green-text: #5DCAA5;
+        --blue-bg: #0c2540;
+        --blue-text: #85B7EB;
+        --amber-bg: #2d1f05;
+        --amber-text: #EF9F27;
+        --pink-bg: #2d1020;
+        --pink-text: #ED93B1;
+      }
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: var(--bg-tertiary); color: var(--text-primary); min-height: 100vh; }
+    .app { max-width: 480px; margin: 0 auto; padding: 1rem; padding-bottom: 2rem; }
+    /* Header */
+    .baby-header { display: flex; align-items: center; gap: 12px; margin-bottom: 1.25rem; padding: 12px 14px; background: var(--bg-primary); border: 0.5px solid var(--border); border-radius: var(--radius-lg); }
+    .baby-avatar { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+    .baby-name { font-size: 16px; font-weight: 600; color: var(--text-primary); }
+    .baby-meta { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+    .edit-link { font-size: 12px; color: var(--green); cursor: pointer; margin-left: auto; padding: 4px 8px; }
+    /* Clock row */
+    .clock-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+    .clock { font-size: 12px; color: var(--text-secondary); }
+    .alarm-indicator { display: none; background: var(--green-bg); color: var(--green-text); border-radius: var(--radius-md); padding: 4px 10px; font-size: 12px; font-weight: 500; }
+    /* Tabs */
+    .tab-bar { display: flex; gap: 4px; background: var(--bg-secondary); border-radius: var(--radius-lg); padding: 4px; margin-bottom: 1.25rem; }
+    .tab { flex: 1; padding: 8px 2px; text-align: center; font-size: 11px; font-weight: 500; border-radius: var(--radius-md); cursor: pointer; color: var(--text-secondary); border: none; background: transparent; transition: all 0.15s; }
+    .tab.active { background: var(--bg-primary); color: var(--text-primary); border: 0.5px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+    .page { display: none; }
+    .page.active { display: block; }
+    /* Cards */
+    .card { background: var(--bg-primary); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+    .label { font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; }
+    .section-title { font-size: 11px; font-weight: 500; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; }
+    /* Buttons */
+    .btn-group { display: flex; gap: 8px; }
+    .sel-btn { flex: 1; padding: 12px 6px; border: 0.5px solid var(--border-md); border-radius: var(--radius-md); cursor: pointer; font-size: 13px; font-weight: 500; background: var(--bg-secondary); color: var(--text-secondary); text-align: center; transition: all 0.15s; }
+    .sel-btn:active { transform: scale(0.97); }
+    .sel-btn.on-green { border: 2px solid var(--green); background: var(--green-bg); color: var(--green-text); }
+    .sel-btn.on-blue  { border: 2px solid var(--blue);  background: var(--blue-bg);  color: var(--blue-text); }
+    .sel-btn.on-amber { border: 2px solid var(--amber); background: var(--amber-bg); color: var(--amber-text); }
+    .sel-btn.on-pink  { border: 2px solid var(--pink);  background: var(--pink-bg);  color: var(--pink-text); }
+    .save-btn { width: 100%; padding: 14px; border-radius: var(--radius-lg); border: none; cursor: pointer; font-size: 15px; font-weight: 600; color: white; margin-top: 0.5rem; transition: opacity 0.15s, transform 0.1s; }
+    .save-btn:active { transform: scale(0.98); opacity: 0.9; }
+    .save-btn.green { background: var(--green); }
+    .save-btn.blue  { background: var(--blue); }
+    .save-btn.amber { background: var(--amber); }
+    .save-btn.pink  { background: var(--pink); }
+    /* ML Slider */
+    .ml-display { font-size: 36px; font-weight: 600; color: var(--text-primary); }
+    .ml-unit { font-size: 14px; color: var(--text-secondary); }
+    .quick-btns { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+    .q-btn { padding: 7px 13px; border: 0.5px solid var(--border-md); border-radius: var(--radius-md); cursor: pointer; font-size: 13px; background: var(--bg-secondary); color: var(--text-secondary); transition: all 0.1s; }
+    .q-btn:active { transform: scale(0.95); }
+    /* Feed list */
+    .feed-item { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 0.5px solid var(--border); }
+    .feed-item:last-child { border-bottom: none; }
+    .icon-circle { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; flex-shrink: 0; }
+    .ic-green { background: var(--green-bg); color: var(--green-text); }
+    .ic-blue  { background: var(--blue-bg);  color: var(--blue-text); }
+    .ic-amber { background: var(--amber-bg); color: var(--amber-text); }
+    .ic-gray  { background: var(--bg-secondary); color: var(--text-secondary); }
+    .feed-info { flex: 1; min-width: 0; }
+    .fi-main { font-size: 13px; font-weight: 500; color: var(--text-primary); }
+    .fi-sub  { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+    .del-btn { background: none; border: none; cursor: pointer; color: var(--text-tertiary); font-size: 18px; padding: 6px; line-height: 1; }
+    .del-btn:hover { color: var(--red); }
+    /* Stats */
+    .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 1rem; }
+    .stat-card { background: var(--bg-secondary); border-radius: var(--radius-md); padding: 12px; }
+    .stat-num { font-size: 22px; font-weight: 600; color: var(--text-primary); }
+    .stat-lbl { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+    /* Day nav */
+    .day-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+    .day-nav-btn { background: none; border: 0.5px solid var(--border); border-radius: var(--radius-md); padding: 6px 16px; cursor: pointer; font-size: 18px; color: var(--text-secondary); }
+    .day-title { font-size: 15px; font-weight: 500; color: var(--text-primary); }
+    /* Sub tabs */
+    .sub-tabs { display: flex; gap: 6px; margin-bottom: 1rem; }
+    .sub-tab { flex: 1; padding: 8px; text-align: center; font-size: 12px; font-weight: 500; border-radius: var(--radius-md); cursor: pointer; color: var(--text-secondary); border: 0.5px solid var(--border); background: var(--bg-secondary); transition: all 0.15s; }
+    .sub-tab.active { background: var(--bg-primary); color: var(--text-primary); }
+    .sub-page { display: none; }
+    .sub-page.active { display: block; }
+    /* Inputs */
+    .text-input { width: 100%; padding: 11px 12px; border: 0.5px solid var(--border-md); border-radius: var(--radius-md); background: var(--bg-secondary); color: var(--text-primary); font-size: 14px; font-family: inherit; transition: border-color 0.15s; }
+    .text-input:focus { outline: none; border-color: var(--green); }
+    /* Alarm toggle */
+    .alarm-toggle { width: 46px; height: 26px; background: var(--border-md); border-radius: 13px; cursor: pointer; position: relative; transition: background 0.2s; flex-shrink: 0; border: none; }
+    .alarm-toggle.on { background: var(--green); }
+    .alarm-toggle::after { content: ''; position: absolute; width: 20px; height: 20px; background: white; border-radius: 50%; top: 3px; left: 3px; transition: left 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+    .alarm-toggle.on::after { left: 23px; }
+    .next-badge { display: inline-block; background: var(--green-bg); color: var(--green-text); border-radius: var(--radius-md); padding: 5px 12px; font-size: 12px; font-weight: 500; margin-top: 10px; }
+    /* Charts */
+    .chart-wrap { position: relative; width: 100%; height: 160px; }
+    /* Empty state */
+    .empty-state { text-align: center; padding: 2rem 1rem; color: var(--text-secondary); font-size: 13px; }
+    /* Toast */
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #1a1a18; color: #f0efe9; padding: 10px 20px; border-radius: var(--radius-lg); font-size: 13px; font-weight: 500; opacity: 0; transition: opacity 0.25s; pointer-events: none; z-index: 99; white-space: nowrap; max-width: 90vw; overflow: hidden; text-overflow: ellipsis; }
+    .toast.show { opacity: 1; }
+    /* Alarm overlay */
+    .alarm-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; z-index: 200; }
+    .alarm-overlay.show { display: flex; }
+    .alarm-box { background: var(--bg-primary); border-radius: var(--radius-xl); padding: 2rem 1.5rem; text-align: center; max-width: 300px; width: 90%; }
+    .alarm-emoji { font-size: 48px; margin-bottom: 12px; }
+    .alarm-title { font-size: 18px; font-weight: 600; margin-bottom: 6px; color: var(--text-primary); }
+    .alarm-sub { font-size: 13px; color: var(--text-secondary); margin-bottom: 1.5rem; }
+    .alarm-stop { width: 100%; padding: 14px; background: var(--red); color: white; border: none; border-radius: var(--radius-md); font-size: 15px; font-weight: 600; cursor: pointer; }
+    /* Setup */
+    .setup-wrap { min-height: 90vh; display: flex; flex-direction: column; justify-content: center; }
+    .setup-title { font-size: 24px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px; }
+    .setup-sub { font-size: 14px; color: var(--text-secondary); margin-bottom: 2rem; line-height: 1.5; }
+    /* Range */
+    input[type=range] { width: 100%; accent-color: var(--green); }
+  </style>
+</head>
+<body>
+<div class="app" id="mainApp">
+
+  <!-- SETUP -->
+  <div id="setupScreen" class="setup-wrap" style="display:none;">
+    <div class="setup-title">Bienvenido 👶</div>
+    <div class="setup-sub">Ingresa los datos de tu bebe para comenzar a registrar.</div>
+    <div class="card">
+      <div style="margin-bottom:1rem;">
+        <div class="label">Nombre del bebe</div>
+        <input class="text-input" type="text" id="setupNombre" placeholder="ej: Sofia" autocomplete="off">
+      </div>
+      <div style="margin-bottom:1rem;">
+        <div class="label">Sexo</div>
+        <div class="btn-group">
+          <button class="sel-btn on-blue" id="ss-nino" onclick="selSetup('nino')">Nino</button>
+          <button class="sel-btn" id="ss-nina" onclick="selSetup('nina')">Nina</button>
+        </div>
+      </div>
+      <div style="margin-bottom:1rem;">
+        <div class="label">Fecha de nacimiento</div>
+        <input class="text-input" type="date" id="setupFecha">
+      </div>
+      <div>
+        <div class="label">Peso al nacer (kg)</div>
+        <input class="text-input" type="number" id="setupPeso" min="0.5" max="6" step="0.01" placeholder="ej: 3.40">
+      </div>
+    </div>
+    <button class="save-btn green" onclick="finishSetup()">Comenzar</button>
+  </div>
+
+  <!-- MAIN -->
+  <div id="appContent" style="display:none;">
+    <div class="baby-header" id="babyHeader"></div>
+    <div class="clock-row">
+      <div class="clock" id="currentTime"></div>
+      <div class="alarm-indicator" id="alarmIndicator"></div>
+    </div>
+
+    <div class="tab-bar">
+      <button class="tab active" onclick="switchTab(this,'registro')">Toma</button>
+      <button class="tab" onclick="switchTab(this,'panial')">Panial</button>
+      <button class="tab" onclick="switchTab(this,'peso')">Peso</button>
+      <button class="tab" onclick="switchTab(this,'alarma')">Alarma</button>
+      <button class="tab" onclick="switchTab(this,'dashboard')">Dashboard</button>
+    </div>
+
+    <!-- TOMA -->
+    <div id="tab-registro" class="page active">
+      <div class="card">
+        <div class="label">Tipo de leche</div>
+        <div class="btn-group">
+          <button class="sel-btn on-green" id="bt-materna" onclick="sel('type','materna',this,'on-green')">Materna</button>
+          <button class="sel-btn" id="bt-formula" onclick="sel('type','formula',this,'on-blue')">Formula</button>
+        </div>
+      </div>
+      <div class="card" id="card-pecho">
+        <div class="label">Pecho</div>
+        <div class="btn-group">
+          <button class="sel-btn on-green" id="bt-izquierdo" onclick="selBreast('izquierdo',this)">Izquierdo</button>
+          <button class="sel-btn" id="bt-derecho" onclick="selBreast('derecho',this)">Derecho</button>
+          <button class="sel-btn" id="bt-ambos" onclick="selBreast('ambos',this)">Ambos</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="label">Cantidad</div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div><span class="ml-display" id="mlDisp">80</span><span class="ml-unit"> ml</span></div>
+          <input type="range" min="0" max="300" step="5" value="80" id="mlSlider" oninput="updateMl(this.value)" style="flex:1;">
+        </div>
+        <div class="quick-btns">
+          <button class="q-btn" onclick="setMl(60)">60</button>
+          <button class="q-btn" onclick="setMl(80)">80</button>
+          <button class="q-btn" onclick="setMl(100)">100</button>
+          <button class="q-btn" onclick="setMl(120)">120</button>
+          <button class="q-btn" onclick="setMl(150)">150</button>
+          <button class="q-btn" onclick="setMl(180)">180</button>
+        </div>
+      </div>
+      <button class="save-btn green" onclick="saveFeeding()">Guardar toma</button>
+      <div class="card" style="margin-top:1rem;">
+        <div class="section-title">Tomas de hoy</div>
+        <div id="feedLog"></div>
+      </div>
+    </div>
+
+    <!-- PANIAL -->
+    <div id="tab-panial" class="page">
+      <div class="card">
+        <div class="label">Tipo de panial</div>
+        <div class="btn-group">
+          <button class="sel-btn on-blue" id="pt-mojado" onclick="selPanial('mojado',this)">Mojado</button>
+          <button class="sel-btn" id="pt-sucio" onclick="selPanial('sucio',this)">Sucio</button>
+          <button class="sel-btn" id="pt-mixto" onclick="selPanial('mixto',this)">Mixto</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="label">Notas (opcional)</div>
+        <input type="text" id="panialNota" class="text-input" placeholder="ej: color normal...">
+      </div>
+      <button class="save-btn blue" onclick="savePanial()">Registrar panial</button>
+      <div class="card" style="margin-top:1rem;">
+        <div class="section-title">Paniales de hoy</div>
+        <div id="panialLog"></div>
+      </div>
+    </div>
+
+    <!-- PESO -->
+    <div id="tab-peso" class="page">
+      <div class="card">
+        <div class="label">Peso del bebe</div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <input class="text-input" type="number" id="pesoInput" min="0.5" max="20" step="0.01" placeholder="0.00" style="flex:1;font-size:20px;text-align:center;font-weight:600;">
+          <span style="font-size:16px;color:var(--text-secondary);">kg</span>
+        </div>
+        <div style="font-size:12px;color:var(--text-secondary);margin-top:6px;">Fecha: <span id="pesoFechaLabel"></span></div>
+      </div>
+      <button class="save-btn amber" onclick="savePeso()">Guardar peso</button>
+      <div class="card" style="margin-top:1rem;">
+        <div class="section-title">Historial de peso</div>
+        <div id="pesoLog"></div>
+        <div style="position:relative;width:100%;height:140px;margin-top:1rem;"><canvas id="pesoChart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- ALARMA -->
+    <div id="tab-alarma" class="page">
+      <div class="card">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:1rem;">
+          <button class="alarm-toggle" id="alarmToggle" onclick="toggleAlarm()"></button>
+          <div>
+            <div style="font-size:14px;font-weight:500;color:var(--text-primary);">Recordatorio de toma</div>
+            <div style="font-size:12px;color:var(--text-secondary);">Suena hasta que lo apagues manualmente</div>
+          </div>
+        </div>
+        <div class="label">Intervalo entre tomas</div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <input type="range" min="1" max="6" step="0.5" value="3" id="intervalSlider" oninput="updateInterval(this.value)" style="flex:1;">
+          <span style="font-size:18px;font-weight:600;min-width:50px;color:var(--text-primary);" id="intervalDisp">3h</span>
+        </div>
+        <div id="nextAlarmDiv" style="display:none;">
+          <div class="next-badge" id="nextAlarmText"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="section-title">Ultima toma</div>
+        <div id="lastFeedInfo" style="font-size:14px;color:var(--text-secondary);">Sin tomas registradas</div>
+      </div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="tab-dashboard" class="page">
+      <div class="day-nav">
+        <button class="day-nav-btn" onclick="changeDay(-1)">&#8592;</button>
+        <div class="day-title" id="dayTitle">Hoy</div>
+        <button class="day-nav-btn" onclick="changeDay(1)">&#8594;</button>
+      </div>
+      <div class="sub-tabs">
+        <button class="sub-tab active" onclick="switchSubTab(this,'resumen')">Resumen</button>
+        <button class="sub-tab" onclick="switchSubTab(this,'paniales')">Paniales</button>
+        <button class="sub-tab" onclick="switchSubTab(this,'curva')">Peso</button>
+      </div>
+      <div id="sub-resumen" class="sub-page active">
+        <div class="stat-grid" id="statGrid"></div>
+        <div class="card">
+          <div class="section-title">ml por hora</div>
+          <div class="chart-wrap"><canvas id="chartCanvas"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="section-title">Tomas del dia</div>
+          <div id="dashFeedLog"></div>
+        </div>
+      </div>
+      <div id="sub-paniales" class="sub-page">
+        <div class="stat-grid" id="panialStatGrid"></div>
+        <div class="card">
+          <div class="section-title">Detalle paniales</div>
+          <div id="dashPanialLog"></div>
+        </div>
+      </div>
+      <div id="sub-curva" class="sub-page">
+        <div class="card">
+          <div class="section-title">Curva de peso</div>
+          <div style="position:relative;width:100%;height:200px;"><canvas id="weightChart"></canvas></div>
+          <div id="weightStats" style="margin-top:12px;font-size:13px;color:var(--text-secondary);"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PERFIL (edit) -->
+    <div id="tab-perfil" class="page">
+      <div class="card">
+        <div style="margin-bottom:1rem;">
+          <div class="label">Nombre del bebe</div>
+          <input class="text-input" type="text" id="editNombre" placeholder="Nombre">
+        </div>
+        <div style="margin-bottom:1rem;">
+          <div class="label">Sexo</div>
+          <div class="btn-group">
+            <button class="sel-btn" id="ep-nino" onclick="selSetupEdit('nino')">Nino</button>
+            <button class="sel-btn" id="ep-nina" onclick="selSetupEdit('nina')">Nina</button>
+          </div>
+        </div>
+        <div style="margin-bottom:1rem;">
+          <div class="label">Fecha de nacimiento</div>
+          <input class="text-input" type="date" id="editFecha">
+        </div>
+        <div>
+          <div class="label">Peso al nacer (kg)</div>
+          <input class="text-input" type="number" id="editPesoNacer" min="0.5" max="6" step="0.01" placeholder="ej: 3.40">
+        </div>
+      </div>
+      <button class="save-btn pink" onclick="saveProfile()">Guardar perfil</button>
+      <div style="height:1rem;"></div>
+      <button class="save-btn" style="background:var(--bg-secondary);color:var(--text-secondary);border:0.5px solid var(--border-md);margin-top:0;" onclick="cancelEdit()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="alarm-overlay" id="alarmOverlay">
+  <div class="alarm-box">
+    <div class="alarm-emoji">🍼</div>
+    <div class="alarm-title" id="alarmTitle">Hora de la toma!</div>
+    <div class="alarm-sub">Toca el boton para apagar la alarma.</div>
+    <button class="alarm-stop" onclick="stopAlarm()">Apagar alarma</button>
+  </div>
+</div>
+
+<script>
+// ─── State ───────────────────────────────────────────────────────────────────
+const S = {
+  type: 'materna', breast: 'izquierdo', ml: 80,
+  panial: 'mojado',
+  setupSexo: 'nino', editSexo: 'nino',
+  alarmOn: false, intervalHours: 3, nextAlarmTime: null,
+  dayOffset: 0, subTab: 'resumen'
+};
+let alarmTimeout = null, alarmAudio = null, alarmLoopId = null;
+const charts = {};
+
+// ─── Storage ─────────────────────────────────────────────────────────────────
+const dayKey = (o=0) => { const d=new Date(); d.setDate(d.getDate()+o); return d.toISOString().slice(0,10); };
+const gls = k => { try { return JSON.parse(localStorage.getItem(k)||'null'); } catch { return null; } };
+const sls = (k,v) => { try { localStorage.setItem(k,JSON.stringify(v)); } catch {} };
+const getFeeds   = (o=0) => gls('bt_feeds_'+dayKey(o))   || [];
+const saveFeeds  = (v,o=0) => sls('bt_feeds_'+dayKey(o), v);
+const getPanials = (o=0) => gls('bt_panials_'+dayKey(o)) || [];
+const savePanials= (v,o=0) => sls('bt_panials_'+dayKey(o), v);
+const getWeights = () => gls('bt_weights') || [];
+const saveWeights= v => sls('bt_weights', v);
+const getProfile = () => gls('bt_profile');
+const saveProfileData = v => sls('bt_profile', v);
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+function init() {
+  const p = getProfile();
+  if (!p) {
+    document.getElementById('setupScreen').style.display = 'flex';
+    document.getElementById('setupFecha').value = dayKey(0);
+  } else {
+    showApp();
+  }
+}
+
+function showApp() {
+  document.getElementById('setupScreen').style.display = 'none';
+  document.getElementById('appContent').style.display = 'block';
+  renderBabyHeader();
+  renderFeedLog();
+  renderPanialLog();
+  document.getElementById('pesoFechaLabel').textContent = new Date().toLocaleDateString('es-ES',{day:'numeric',month:'short',year:'numeric'});
+  setInterval(tick, 1000);
+  tick();
+}
+
+function tick() {
+  const el = document.getElementById('currentTime');
+  if (el) el.textContent = new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
+  updateAlarmBadge();
+}
+
+// ─── Profile ─────────────────────────────────────────────────────────────────
+function selSetup(val) {
+  S.setupSexo = val;
+  document.getElementById('ss-nino').className = 'sel-btn' + (val==='nino'?' on-blue':'');
+  document.getElementById('ss-nina').className = 'sel-btn' + (val==='nina'?' on-pink':'');
+}
+function selSetupEdit(val) {
+  S.editSexo = val;
+  document.getElementById('ep-nino').className = 'sel-btn' + (val==='nino'?' on-blue':'');
+  document.getElementById('ep-nina').className = 'sel-btn' + (val==='nina'?' on-pink':'');
+}
+
+function finishSetup() {
+  const nombre = document.getElementById('setupNombre').value.trim();
+  const fecha  = document.getElementById('setupFecha').value;
+  const peso   = parseFloat(document.getElementById('setupPeso').value);
+  if (!nombre) { showToast('Ingresa el nombre del bebe'); return; }
+  if (!fecha)  { showToast('Ingresa la fecha de nacimiento'); return; }
+  saveProfileData({ nombre, sexo: S.setupSexo, fechaNacimiento: fecha, pesoNacer: peso||null });
+  if (peso) {
+    const w = getWeights();
+    if (!w.find(x=>x.date===fecha)) { w.push({date:fecha,kg:peso}); w.sort((a,b)=>a.date.localeCompare(b.date)); saveWeights(w); }
+  }
+  showApp();
+}
+
+function calcAge(fechaNac) {
+  const born = new Date(fechaNac+'T12:00:00'), now = new Date();
+  const days = Math.floor((now-born)/86400000);
+  if (days < 0) return '';
+  if (days < 7)  return days + (days===1?' dia':' dias');
+  if (days < 30) { const w=Math.floor(days/7); return w+(w===1?' semana':' semanas'); }
+  if (days < 365){ const m=Math.floor(days/30); return m+(m===1?' mes':' meses'); }
+  const y=Math.floor(days/365), r=Math.floor((days%365)/30);
+  return y+(y===1?' año':' años')+(r>0?' y '+r+'m':'');
+}
+
+function renderBabyHeader() {
+  const p = getProfile(); if (!p) return;
+  const age  = p.fechaNacimiento ? calcAge(p.fechaNacimiento) : '';
+  const boy  = p.sexo === 'nino';
+  const bg   = boy ? 'var(--blue-bg)'  : 'var(--pink-bg)';
+  const col  = boy ? 'var(--blue-text)': 'var(--pink-text)';
+  const emoji= boy ? '👦' : '👧';
+  const w    = getWeights();
+  const lastW= w.length ? w[w.length-1].kg.toFixed(2)+' kg' : (p.pesoNacer ? p.pesoNacer.toFixed(2)+' kg' : '');
+  document.getElementById('babyHeader').innerHTML = `
+    <div class="baby-avatar" style="background:${bg};color:${col};">${emoji}</div>
+    <div style="flex:1;min-width:0;">
+      <div class="baby-name">${p.nombre}</div>
+      <div class="baby-meta">${[age, lastW, boy?'Nino':'Nina'].filter(Boolean).join(' · ')}</div>
+    </div>
+    <span class="edit-link" onclick="openEditProfile()">Editar</span>`;
+}
+
+function openEditProfile() {
+  const p = getProfile();
+  document.getElementById('editNombre').value    = p.nombre || '';
+  document.getElementById('editFecha').value     = p.fechaNacimiento || '';
+  document.getElementById('editPesoNacer').value = p.pesoNacer || '';
+  S.editSexo = p.sexo || 'nino';
+  selSetupEdit(S.editSexo);
+  switchTabDirect('perfil');
+}
+
+function saveProfile() {
+  const nombre = document.getElementById('editNombre').value.trim();
+  const fecha  = document.getElementById('editFecha').value;
+  const peso   = parseFloat(document.getElementById('editPesoNacer').value);
+  if (!nombre) { showToast('Ingresa el nombre'); return; }
+  saveProfileData({ nombre, sexo: S.editSexo, fechaNacimiento: fecha, pesoNacer: peso||null });
+  renderBabyHeader();
+  switchTabDirect('registro');
+  document.querySelectorAll('.tab')[0].classList.add('active');
+  showToast('Perfil guardado');
+}
+
+function cancelEdit() {
+  switchTabDirect('registro');
+  document.querySelectorAll('.tab')[0].classList.add('active');
+}
+
+// ─── Toma ────────────────────────────────────────────────────────────────────
+function sel(group, val, btn, cls) {
+  S[group] = val;
+  if (group === 'type') {
+    document.getElementById('bt-materna').className = 'sel-btn' + (val==='materna'?' on-green':'');
+    document.getElementById('bt-formula').className = 'sel-btn' + (val==='formula'?' on-blue':'');
+    document.getElementById('card-pecho').style.display = val==='materna' ? 'block' : 'none';
+  }
+}
+function selBreast(val) {
+  S.breast = val;
+  ['izquierdo','derecho','ambos'].forEach(v => {
+    document.getElementById('bt-'+v).className = 'sel-btn'+(v===val?' on-green':'');
+  });
+}
+function updateMl(v) { S.ml=parseInt(v); document.getElementById('mlDisp').textContent=S.ml; }
+function setMl(v) { S.ml=v; document.getElementById('mlSlider').value=v; document.getElementById('mlDisp').textContent=v; }
+
+function saveFeeding() {
+  const feeds = getFeeds(0);
+  feeds.unshift({id:Date.now(), time:new Date().toISOString(), type:S.type, breast:S.type==='materna'?S.breast:null, ml:S.ml});
+  saveFeeds(feeds);
+  if (S.alarmOn) scheduleAlarm();
+  renderFeedLog();
+  renderAlarmPage();
+  showToast('Toma guardada: '+S.ml+' ml');
+}
+
+function renderFeedLog() {
+  const feeds = getFeeds(0);
+  const el = document.getElementById('feedLog');
+  if (!el) return;
+  if (!feeds.length) { el.innerHTML='<div class="empty-state">Sin tomas hoy</div>'; return; }
+  el.innerHTML = feeds.slice(0,8).map(f => {
+    const t = new Date(f.time).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
+    const info = f.type==='materna' ? (f.breast||'') : 'formula';
+    return `<div class="feed-item">
+      <div class="icon-circle ic-green">${f.type==='materna'?'M':'F'}</div>
+      <div class="feed-info"><div class="fi-main">${f.ml} ml · ${info}</div><div class="fi-sub">${t}</div></div>
+      <button class="del-btn" onclick="delFeed(${f.id})">×</button>
+    </div>`;
+  }).join('');
+}
+function delFeed(id) { saveFeeds(getFeeds(0).filter(f=>f.id!==id)); renderFeedLog(); renderAlarmPage(); }
+
+// ─── Panial ───────────────────────────────────────────────────────────────────
+function selPanial(val) {
+  S.panial = val;
+  ['mojado','sucio','mixto'].forEach(v => {
+    document.getElementById('pt-'+v).className = 'sel-btn'+(v===val?' on-blue':'');
+  });
+}
+function savePanial() {
+  const panials = getPanials(0);
+  const nota = document.getElementById('panialNota').value.trim();
+  panials.unshift({id:Date.now(), time:new Date().toISOString(), tipo:S.panial, nota});
+  savePanials(panials);
+  document.getElementById('panialNota').value = '';
+  renderPanialLog();
+  showToast('Panial: '+S.panial);
+}
+function renderPanialLog() {
+  const p = getPanials(0);
+  const el = document.getElementById('panialLog');
+  if (!el) return;
+  const ic = {mojado:'ic-blue',sucio:'ic-amber',mixto:'ic-gray'};
+  if (!p.length) { el.innerHTML='<div class="empty-state">Sin paniales hoy</div>'; return; }
+  el.innerHTML = p.slice(0,8).map(x => {
+    const t = new Date(x.time).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
+    return `<div class="feed-item">
+      <div class="icon-circle ${ic[x.tipo]}">${x.tipo[0].toUpperCase()}</div>
+      <div class="feed-info"><div class="fi-main">${x.tipo}${x.nota?' · '+x.nota:''}</div><div class="fi-sub">${t}</div></div>
+      <button class="del-btn" onclick="delPanial(${x.id})">×</button>
+    </div>`;
+  }).join('');
+}
+function delPanial(id) { savePanials(getPanials(0).filter(p=>p.id!==id)); renderPanialLog(); }
+
+// ─── Peso ─────────────────────────────────────────────────────────────────────
+function savePeso() {
+  const val = parseFloat(document.getElementById('pesoInput').value);
+  if (!val||val<0.5||val>20) { showToast('Peso invalido'); return; }
+  const w = getWeights(), today = dayKey(0);
+  const idx = w.findIndex(x=>x.date===today);
+  if (idx>=0) w[idx].kg=val; else w.push({date:today,kg:val});
+  w.sort((a,b)=>a.date.localeCompare(b.date));
+  saveWeights(w);
+  document.getElementById('pesoInput').value = '';
+  renderPesoLog();
+  renderBabyHeader();
+  showToast('Peso: '+val.toFixed(2)+' kg');
+}
+function renderPesoLog() {
+  const w = getWeights();
+  const el = document.getElementById('pesoLog');
+  if (!el) return;
+  if (!w.length) { el.innerHTML='<div class="empty-state">Sin registros</div>'; return; }
+  el.innerHTML = [...w].reverse().slice(0,6).map(x => {
+    const d = new Date(x.date+'T12:00:00').toLocaleDateString('es-ES',{day:'numeric',month:'short'});
+    return `<div class="feed-item">
+      <div class="icon-circle ic-amber" style="font-size:10px;">kg</div>
+      <div class="feed-info"><div class="fi-main">${x.kg.toFixed(2)} kg</div><div class="fi-sub">${d}</div></div>
+      <button class="del-btn" onclick="delPeso('${x.date}')">×</button>
+    </div>`;
+  }).join('');
+  renderPesoMiniChart();
+}
+function delPeso(date) { saveWeights(getWeights().filter(w=>w.date!==date)); renderPesoLog(); renderBabyHeader(); }
+function renderPesoMiniChart() {
+  const w = getWeights();
+  if (charts.peso) { charts.peso.destroy(); charts.peso=null; }
+  if (w.length<2) return;
+  charts.peso = new Chart(document.getElementById('pesoChart'), {
+    type:'line',
+    data:{labels:w.map(x=>new Date(x.date+'T12:00:00').toLocaleDateString('es-ES',{day:'numeric',month:'short'})),datasets:[{data:w.map(x=>x.kg),borderColor:'#BA7517',backgroundColor:'rgba(186,117,23,0.08)',tension:0.3,pointRadius:4,pointBackgroundColor:'#BA7517',fill:true}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:10},color:'#888'},grid:{display:false}},y:{ticks:{font:{size:10},color:'#888'},grid:{color:'rgba(0,0,0,0.06)'}}}}
+  });
+}
+
+// ─── Alarm ────────────────────────────────────────────────────────────────────
+function updateInterval(v) {
+  S.intervalHours = parseFloat(v);
+  const h=Math.floor(S.intervalHours), m=(S.intervalHours%1)*60;
+  document.getElementById('intervalDisp').textContent = m ? h+'h '+Math.round(m)+'m' : h+'h';
+  if (S.alarmOn) scheduleAlarm();
+}
+function toggleAlarm() {
+  S.alarmOn = !S.alarmOn;
+  document.getElementById('alarmToggle').classList.toggle('on', S.alarmOn);
+  if (S.alarmOn) scheduleAlarm();
+  else { clearTimeout(alarmTimeout); document.getElementById('nextAlarmDiv').style.display='none'; S.nextAlarmTime=null; }
+}
+function scheduleAlarm() {
+  clearTimeout(alarmTimeout);
+  const feeds = getFeeds(0);
+  const last = feeds.length ? new Date(feeds[0].time) : new Date();
+  const next = new Date(last.getTime() + S.intervalHours*3600000);
+  S.nextAlarmTime = next;
+  document.getElementById('nextAlarmDiv').style.display = 'block';
+  document.getElementById('nextAlarmText').textContent = 'Proxima toma: '+next.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
+  alarmTimeout = setTimeout(ringAlarm, Math.max(0, next-new Date()));
+}
+function updateAlarmBadge() {
+  const ind = document.getElementById('alarmIndicator');
+  if (!ind) return;
+  if (!S.alarmOn || !S.nextAlarmTime) { ind.style.display='none'; return; }
+  const diff = S.nextAlarmTime - new Date();
+  if (diff<0) { ind.style.display='none'; return; }
+  const m = Math.round(diff/60000);
+  ind.style.display = 'inline-block';
+  ind.textContent = m<60 ? 'Toma en '+m+'min' : 'Toma en '+(m/60).toFixed(1)+'h';
+}
+function ringAlarm() {
+  const p = getProfile();
+  document.getElementById('alarmTitle').textContent = p ? 'Hora de la toma, '+p.nombre+'!' : 'Hora de la toma!';
+  document.getElementById('alarmOverlay').classList.add('show');
+  beepLoop();
+}
+function beepLoop() {
+  try {
+    alarmAudio = new AudioContext();
+    const beep = () => {
+      if (!alarmAudio) return;
+      const o=alarmAudio.createOscillator(), g=alarmAudio.createGain();
+      o.connect(g); g.connect(alarmAudio.destination);
+      o.frequency.value=880;
+      g.gain.setValueAtTime(0.3, alarmAudio.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, alarmAudio.currentTime+0.4);
+      o.start(alarmAudio.currentTime); o.stop(alarmAudio.currentTime+0.45);
+    };
+    beep(); alarmLoopId = setInterval(beep, 1500);
+  } catch(e) {}
+}
+function stopAlarm() {
+  document.getElementById('alarmOverlay').classList.remove('show');
+  clearInterval(alarmLoopId); alarmLoopId=null;
+  if (alarmAudio) { try { alarmAudio.close(); } catch(e) {} alarmAudio=null; }
+  if (S.alarmOn) scheduleAlarm();
+}
+function renderAlarmPage() {
+  const feeds = getFeeds(0);
+  const el = document.getElementById('lastFeedInfo');
+  if (!el) return;
+  if (!feeds.length) { el.textContent='Sin tomas registradas hoy'; return; }
+  const f = feeds[0];
+  const t = new Date(f.time).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
+  const elapsed = Math.round((new Date()-new Date(f.time))/60000);
+  el.innerHTML = `<b>${f.ml} ml</b> a las ${t} — hace ${elapsed} min`;
+}
+
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+function changeDay(dir) {
+  S.dayOffset += dir;
+  if (S.dayOffset>0) S.dayOffset=0;
+  renderDashboard();
+}
+function renderDashboard() {
+  const o = S.dayOffset;
+  const d = new Date(); d.setDate(d.getDate()+o);
+  document.getElementById('dayTitle').textContent = o===0?'Hoy':o===-1?'Ayer':d.toLocaleDateString('es-ES',{day:'numeric',month:'short'});
+  const feeds = getFeeds(o);
+  const totalMl=feeds.reduce((s,f)=>s+f.ml,0);
+  const avgMl=feeds.length?Math.round(totalMl/feeds.length):0;
+  const materna=feeds.filter(f=>f.type==='materna').length;
+  const formula=feeds.filter(f=>f.type==='formula').length;
+  document.getElementById('statGrid').innerHTML=`
+    <div class="stat-card"><div class="stat-num">${totalMl}</div><div class="stat-lbl">ml totales</div></div>
+    <div class="stat-card"><div class="stat-num">${feeds.length}</div><div class="stat-lbl">tomas</div></div>
+    <div class="stat-card"><div class="stat-num">${avgMl}</div><div class="stat-lbl">ml promedio</div></div>
+    <div class="stat-card"><div class="stat-num">${materna}M / ${formula}F</div><div class="stat-lbl">materna / formula</div></div>`;
+  const buckets=Array(24).fill(0);
+  feeds.forEach(f=>{ buckets[new Date(f.time).getHours()]+=f.ml; });
+  const active=buckets.map((v,i)=>({v,i})).filter(x=>x.v>0);
+  const minH=active.length?Math.max(0,active[0].i-1):6;
+  const maxH=active.length?Math.min(23,active[active.length-1].i+2):21;
+  if (charts.main) { charts.main.destroy(); charts.main=null; }
+  charts.main = new Chart(document.getElementById('chartCanvas'),{
+    type:'bar',
+    data:{labels:Array.from({length:maxH-minH+1},(_,i)=>(minH+i)+'h'),datasets:[{data:buckets.slice(minH,maxH+1),backgroundColor:'#9FE1CB',borderRadius:4,borderSkipped:false}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:11},color:'#888'},grid:{display:false}},y:{ticks:{font:{size:11},color:'#888'},grid:{color:'rgba(0,0,0,0.06)'},beginAtZero:true}}}
+  });
+  document.getElementById('dashFeedLog').innerHTML = feeds.length
+    ? feeds.map(f=>{const t=new Date(f.time).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});return `<div class="feed-item"><div class="icon-circle ic-green">${f.type==='materna'?'M':'F'}</div><div class="feed-info"><div class="fi-main">${f.ml} ml · ${f.type==='materna'?(f.breast||''):'formula'}</div><div class="fi-sub">${t}</div></div></div>`;}).join('')
+    : '<div class="empty-state">Sin tomas</div>';
+  if (S.subTab==='paniales') renderDashPanials();
+  if (S.subTab==='curva') renderWeightChart();
+}
+function renderDashPanials() {
+  const p=getPanials(S.dayOffset);
+  const moj=p.filter(x=>x.tipo==='mojado').length, suc=p.filter(x=>x.tipo==='sucio').length, mix=p.filter(x=>x.tipo==='mixto').length;
+  document.getElementById('panialStatGrid').innerHTML=`
+    <div class="stat-card"><div class="stat-num">${p.length}</div><div class="stat-lbl">total</div></div>
+    <div class="stat-card"><div class="stat-num">${moj}</div><div class="stat-lbl">mojados</div></div>
+    <div class="stat-card"><div class="stat-num">${suc}</div><div class="stat-lbl">sucios</div></div>
+    <div class="stat-card"><div class="stat-num">${mix}</div><div class="stat-lbl">mixtos</div></div>`;
+  const ic={mojado:'ic-blue',sucio:'ic-amber',mixto:'ic-gray'};
+  document.getElementById('dashPanialLog').innerHTML=p.length
+    ?p.map(x=>{const t=new Date(x.time).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});return `<div class="feed-item"><div class="icon-circle ${ic[x.tipo]}">${x.tipo[0].toUpperCase()}</div><div class="feed-info"><div class="fi-main">${x.tipo}${x.nota?' · '+x.nota:''}</div><div class="fi-sub">${t}</div></div></div>`;}).join('')
+    :'<div class="empty-state">Sin paniales</div>';
+}
+function renderWeightChart() {
+  const w=getWeights();
+  if (charts.wdash){charts.wdash.destroy();charts.wdash=null;}
+  const el=document.getElementById('weightStats');
+  if (w.length<2){el.textContent=w.length===1?'Peso actual: '+w[0].kg.toFixed(2)+' kg. Registra mas mediciones para ver la curva.':'Sin datos de peso aun.';return;}
+  const diff=(w[w.length-1].kg-w[0].kg).toFixed(2);
+  el.textContent='Actual: '+w[w.length-1].kg.toFixed(2)+' kg · Desde inicio: '+(diff>=0?'+':'')+diff+' kg';
+  charts.wdash=new Chart(document.getElementById('weightChart'),{
+    type:'line',
+    data:{labels:w.map(x=>new Date(x.date+'T12:00:00').toLocaleDateString('es-ES',{day:'numeric',month:'short'})),datasets:[{data:w.map(x=>x.kg),borderColor:'#BA7517',backgroundColor:'rgba(186,117,23,0.08)',tension:0.3,pointRadius:4,pointBackgroundColor:'#BA7517',fill:true}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:10},color:'#888'},grid:{display:false}},y:{ticks:{font:{size:10},color:'#888'},grid:{color:'rgba(0,0,0,0.06)'}}}}
+  });
+}
+
+// ─── Tab navigation ───────────────────────────────────────────────────────────
+function switchTab(btn, t) {
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-'+t).classList.add('active');
+  if (t==='dashboard') renderDashboard();
+  if (t==='alarma') renderAlarmPage();
+  if (t==='peso') { renderPesoLog(); document.getElementById('pesoFechaLabel').textContent=new Date().toLocaleDateString('es-ES',{day:'numeric',month:'short',year:'numeric'}); }
+}
+function switchTabDirect(t) {
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('tab-'+t).classList.add('active');
+}
+function switchSubTab(btn, t) {
+  S.subTab = t;
+  document.querySelectorAll('.sub-tab').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.sub-page').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('sub-'+t).classList.add('active');
+  if (t==='curva') renderWeightChart();
+  if (t==='paniales') renderDashPanials();
+}
+
+// ─── Toast ────────────────────────────────────────────────────────────────────
+function showToast(msg) {
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+init();
+</script>
+</body>
+</html>
