@@ -215,6 +215,7 @@
       <div class="clock" id="currentTime"></div>
       <div id="syncBadge" class="sync-badge" style="display:none;"><span class="sync-dot"></span> Live</div>
       <div class="alarm-indicator" id="alarmIndicator"></div>
+      <button onclick="logOut()" style="font-size:11px;padding:4px 10px;border-radius:6px;border:0.5px solid var(--border-md);background:var(--bg-secondary);color:var(--text-secondary);cursor:pointer;">⇄ Cambiar grupo</button>
     </div>
 
     <div class="tab-bar">
@@ -940,10 +941,16 @@ function renderWeightLog() {
 
 // Auto-login
 document.addEventListener('firebase-ready',()=>{
-  const saved=gls('bt3_group');
-  if(saved){groupId=saved;document.getElementById('loginScreen').style.display='none';enterApp();}
-  else{document.getElementById('loginScreen').style.display='block';}
   document.getElementById('setupDob').value=nowDate();
+  const saved=gls('bt3_group');
+  if(saved){
+    // Validate group exists in Firestore before auto-entering
+    fns().getDocs(fns().query(fns().collection(db(),'groups',saved,'feedings'),fns().orderBy('time','desc')))
+      .then(()=>{ groupId=saved; document.getElementById('loginScreen').style.display='none'; enterApp(); })
+      .catch(()=>{ sls('bt3_group',null); document.getElementById('loginScreen').style.display='block'; showToast('Session expired. Please join again.'); });
+  } else {
+    document.getElementById('loginScreen').style.display='block';
+  }
 });
 if(window._firebaseReady){
   const saved=gls('bt3_group');
